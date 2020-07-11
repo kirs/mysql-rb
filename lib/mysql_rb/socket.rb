@@ -6,15 +6,23 @@ module MysqlRb
       raise ConnectionError.new(error)
     end
 
+    def read_hs_packet
+      line = @sock.recv(1024)
+
+      len, seq = line[0..3].unpack('s<c')
+      puts "<packet> len: #{len}, num: #{seq}"
+
+      packet = MysqlRb::Packet.new
+      packet.len = len
+      packet.seq = seq
+      packet.data = line[3..]
+      packet
+    end
+
     def handshake
-      line_raw = @sock.recv(1024)
-      line = StringIO.new(line_raw)
+      packet = read_hs_packet
 
-      packetlen = line.read(3).unpack1('s<') # 3 bytes, s< is 16-bit signed, little endian
-      packetnum = line.getc.to_i
-      puts "<packet> len: #{packetlen}, num: #{packetnum}"
-
-      h = HandshakeUtils.parse_handshake(line)
+      h = HandshakeUtils.parse_handshake(StringIO.new(packet.data))
       puts h.inspect
 
       hr = HandshakeUtils.handshake_response
@@ -29,7 +37,7 @@ module MysqlRb
         raise MysqlRs::HandshakeError, "unexpected handshake packet: #{ok_packet}"
       end
     rescue => error
-      raise MysqlRs::HandshakeError.new(error)
+      raise MysqlRb::HandshakeError.new(error)
     end
 
     # [0e] COM_PING

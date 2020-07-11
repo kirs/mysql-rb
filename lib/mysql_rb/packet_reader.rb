@@ -29,6 +29,10 @@ module MysqlRb
       @buf = ReadBuffer.new(io)
     end
 
+    # TODO
+    def read_packet
+    end
+
     def read
       packets = []
       loop do
