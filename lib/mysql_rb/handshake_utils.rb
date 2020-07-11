@@ -56,6 +56,10 @@ module MysqlRb
         raise "Unexpected server version: #{server_handshake.version}"
       end
 
+      if (capability & Constants::CapabilityFlags::CLIENT_DEPRECATE_EOF) == 0
+        raise "This client only supports CLIENT_DEPRECATE_EOF"
+      end
+
       if database
         capability = capability | Constants::CapabilityFlags::CLIENT_CONNECT_WITH_DB
       end
