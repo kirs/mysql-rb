@@ -1,6 +1,13 @@
 # frozen-string-literal: true
 module MysqlRb
   class Socket
+    OK_PACKET = "\x00"
+
+    COM_QUERY = 0x03
+    COM_PING = 0x0e
+
+    DEFAULT_CAPABILITY = 0x81bea205
+
     def initialize(addr, port)
       @sock = TCPSocket.new(addr, port)
       @packet_reader = MysqlRb::PacketReader.new(@sock)
@@ -8,20 +15,6 @@ module MysqlRb
       raise ConnectionError.new(error)
     end
 
-    def read_hs_packet
-      line = @sock.recv(1024)
-
-      len, seq = line[0..3].unpack('s<c')
-      puts "<packet> len: #{len}, num: #{seq}"
-
-      packet = MysqlRb::Packet.new
-      packet.len = len
-      packet.seq = seq
-      packet.data = line[3..]
-      packet
-    end
-
-    DEFAULT_CAPABILITY = 0x81bea205
     def handshake(username:, password:, database:)
       if username.empty?
         raise ArgumentError, "username missing"
@@ -44,17 +37,12 @@ module MysqlRb
       # @capabilities = ...
 
       ok_packet = @sock.recv(1024)
-      if ok_packet[4] == "\x00"
-        puts "connection phase: success"
-      else
+      if ok_packet[4] != OK_PACKET
         raise MysqlRb::HandshakeError, "unexpected handshake packet: #{ok_packet}"
       end
     rescue => error
       raise MysqlRb::HandshakeError.new(error)
     end
-
-    COM_QUERY = 0x03
-    COM_PING = 0x0e
 
     def query_command(query)
       [COM_QUERY, query].pack('Ca*')
