@@ -1,7 +1,8 @@
 require 'bundler/setup'
 require 'minitest/autorun'
 require 'byebug'
-require_relative '../lib'
+require_relative '../lib/mysql-rb'
+
 SHITTON = [
         0x01, 0x00, 0x00, 0x01, 0x64, 0x17, 0x00, 0x00, 0x02, 0x03, 0x64, 0x65, 0x66, 0x00, 0x00,
         0x00, 0x01, 0x31, 0x00, 0x0c, 0x3f, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08, 0x81, 0x00, 0x00,
@@ -212,10 +213,10 @@ SHITTON = [
         0x31, 0x30, 0x30, 0x07, 0x00, 0x00, 0x67, 0xfe, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
     ]
 
-class OmgTest < Minitest::Test
+class MysqlRb::OmgTest < Minitest::Test
   def test_parse_handshake
     f = "\n8.0.17\x00\"\x00\x00\x00!\x12NW%hq-\x00\xFF\xFF-\x02\x00\xFF\xC3\x15\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00V\aN)#h\x01%S\\q\f\x00caching_sha2_password\x00"
-    hs = HandshakeUtils.parse_handshake(StringIO.new(f))
+    hs = MysqlRb::HandshakeUtils.parse_handshake(StringIO.new(f))
     assert_equal 10, hs.protocol
     assert_equal "8.0.17", hs.version
     assert_equal 34, hs.connid
@@ -226,13 +227,13 @@ class OmgTest < Minitest::Test
 
   def test_read_packets
     io = StringIO.new(SHITTON.pack("c*"))
-    packets = read_packets(io)
+    packets = MysqlRb::PacketReader.new(io).read
     assert_equal 103, packets.size
   end
   def test_results_shitton
     skip
     io = StringIO.new(SHITTON.pack("c*"))
-    packets = read_packets(io)
+    packets = MysqlRb::PacketReader.new(io).read
     r = Result.new(packets)
     assert_equal 100, r.fields.size
     r.fields.each_with_index do |f, i|
@@ -240,12 +241,16 @@ class OmgTest < Minitest::Test
     end
   end
 
+  def new_client(opts = {})
+    MysqlRb::Client.new(opts)
+  end
+
   NOT_SHITTON = [1, 0, 0, 1, 3, 23, 0, 0, 2, 3, 100, 101, 102, 0, 0, 0, 1, 49, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 3, 3, 100, 101, 102, 0, 0, 0, 1, 50, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 4, 3, 100, 101, 102, 0, 0, 0, 1, 51, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 6, 0, 0, 5, 1, 49, 1, 50, 1, 51, 7, 0, 0, 6, 254, 0, 0, 2, 0, 0, 0]
   def test_results
     io = StringIO.new(NOT_SHITTON.pack("c*"))
-    packets = read_packets(io)
+    packets = MysqlRb::PacketReader.new(io).read
 
-    r = Result.new(packets)
+    r = MysqlRb::Result.new(packets)
     assert_equal 3, r.fields.size
     r.fields.each_with_index do |f, i|
       assert_equal (i+1).to_s.encode("ASCII-8BIT"), f.name
@@ -258,13 +263,13 @@ class OmgTest < Minitest::Test
   end
 
   def test_query_command
-    actual = query_command("select 1")
+    actual = new_client.send(:query_command, "select 1")
     expected = [0x03, 0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x20, 0x31]
     assert_equal expected, actual.unpack("c*")
   end
 
   def test_datetime
-    client = Client.new({})
+    client = new_client
     r = client.query("select now()")
     assert_equal :datetime, r.fields.first.type_name
 
@@ -275,14 +280,15 @@ class OmgTest < Minitest::Test
   end
 
   def test_connection_error
-    client = Client.new(host: 'localhost', port: 9999)
-    assert_raises(Client::ConnectionError) do
+    client = new_client(host: 'localhost', port: 9999)
+    assert_raises(MysqlRb::Client::ConnectionError) do
       client.connect
     end
   end
 
   def test_escape
-    actual = escape("abc'def\"ghi\0jkl%mno")
+    client = new_client
+    actual = client.escape("abc'def\"ghi\0jkl%mno")
     expected = "abc\\'def\\\"ghi\\0jkl%mno"
 # case 0:				/* Must be escaped for 'mysql' */
 #       escape= '0';

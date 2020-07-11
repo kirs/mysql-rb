@@ -1,8 +1,8 @@
 require 'byebug'
 
-require './lib'
+require_relative './lib/mysql-rb'
 
-client = Client.new({})
+client = MysqlRb::Client.new({})
 r = client.query("select 1, 2, 3")
 puts r.results.inspect
 
