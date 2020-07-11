@@ -220,9 +220,12 @@ class MysqlRb::OmgTest < Minitest::Test
     assert_equal 10, hs.protocol
     assert_equal "8.0.17", hs.version
     assert_equal 34, hs.connid
-    assert_equal 65535, hs.cap
+    # assert_equal 65535, hs.cap
     assert_equal 45, hs.encoding
-    assert_equal 50175, hs.extcap
+    # assert_equal 50175, hs.extcap
+
+    assert_equal [33, 18, 78, 87, 37, 104, 113, 45], hs.scramble_1.unpack("c*")
+    assert_equal [86, 7, 78, 41, 35, 104, 1, 37, 83, 92, 113, 12], hs.scramble_2.unpack("c*")
   end
 
   def test_read_packets
@@ -230,6 +233,7 @@ class MysqlRb::OmgTest < Minitest::Test
     packets = MysqlRb::PacketReader.new(io).read
     assert_equal 103, packets.size
   end
+
   def test_results_shitton
     skip
     io = StringIO.new(SHITTON.pack("c*"))
@@ -242,7 +246,7 @@ class MysqlRb::OmgTest < Minitest::Test
   end
 
   def new_client(opts = {})
-    MysqlRb::Client.new(opts)
+    MysqlRb::Client.new({ host: 'localhost', username: 'root' }.merge(opts))
   end
 
   NOT_SHITTON = [1, 0, 0, 1, 3, 23, 0, 0, 2, 3, 100, 101, 102, 0, 0, 0, 1, 49, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 3, 3, 100, 101, 102, 0, 0, 0, 1, 50, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 4, 3, 100, 101, 102, 0, 0, 0, 1, 51, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 6, 0, 0, 5, 1, 49, 1, 50, 1, 51, 7, 0, 0, 6, 254, 0, 0, 2, 0, 0, 0]

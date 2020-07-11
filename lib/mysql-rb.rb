@@ -6,4 +6,5 @@ require_relative './mysql_rb/result'
 require_relative './mysql_rb/structs'
 require_relative './mysql_rb/socket'
 require_relative './mysql_rb/errors'
+require_relative './mysql_rb/handshake_utils'
 

@@ -1,3 +1,4 @@
+# frozen-string-literal: true
 module MysqlRb
   class Socket
     def initialize(addr, port)
@@ -20,13 +21,12 @@ module MysqlRb
       packet
     end
 
-    def handshake
+    def handshake(username:, password:)
       packet = @packet_reader.read_packet
 
       server_hs = HandshakeUtils.parse_handshake(packet.data)
-
-      hr = HandshakeUtils.handshake_response
-      @sock.write(Packet.wrap(hr, 1))
+      resp = HandshakeUtils.handshake_response(server_hs, username: username, password: password)
+      @sock.write(Packet.wrap(resp, 1))
       # TODO: @server_status = hr.server_status
       # @capabilities = ...
 
@@ -34,7 +34,7 @@ module MysqlRb
       if ok_packet[4] == "\x00"
         puts "connection phase: success"
       else
-        raise MysqlRs::HandshakeError, "unexpected handshake packet: #{ok_packet}"
+        raise MysqlRb::HandshakeError, "unexpected handshake packet: #{ok_packet}"
       end
     rescue => error
       raise MysqlRb::HandshakeError.new(error)

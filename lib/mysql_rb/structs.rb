@@ -73,7 +73,8 @@ module MysqlRb
   end
 
   class HandshakePacket
-    attr_accessor :protocol, :version, :connid, :cap, :extcap, :server_status, :encoding
+    attr_accessor :protocol, :version, :connid, :capability, :server_status, :encoding, :auth_plugin
+    attr_accessor :scramble_1, :scramble_2
   end
 
   class Packet

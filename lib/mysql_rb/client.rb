@@ -4,7 +4,6 @@ require 'logger'
 module MysqlRb
   class Client
     DEFAULT_OPTIONS = {
-      host: 'localhost',
       port: 3306
     }
 
@@ -18,7 +17,10 @@ module MysqlRb
       end
 
       @sock = MysqlRb::Socket.new(@connect_options.fetch(:host), @connect_options.fetch(:port))
-      @sock.handshake
+      @sock.handshake(
+        username: @connect_options.fetch(:username),
+        password: @connect_options[:password]
+      )
     end
 
     def connected?
