@@ -235,10 +235,8 @@ class MysqlRb::OmgTest < Minitest::Test
   end
 
   def test_results_shitton
-    skip
-    io = StringIO.new(SHITTON.pack("c*"))
-    packets = MysqlRb::PacketReader.new(io).read
-    r = Result.new(packets)
+    client = new_client
+    r = client.query("SELECT #{(1.upto(100).to_a.join(', '))}")
     assert_equal 100, r.fields.size
     r.fields.each_with_index do |f, i|
       assert_equal (i+1).to_s.encode("ASCII-8BIT"), f.name
@@ -296,6 +294,12 @@ class MysqlRb::OmgTest < Minitest::Test
     assert_raises(MysqlRb::ConnectionError) do
       client.connect
     end
+  end
+
+  def test_ping
+    client = new_client
+    client.connect
+    client.ping
   end
 
   def test_escape
