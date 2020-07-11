@@ -6,17 +6,21 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
+    benchmark-ips (2.7.2)
     byebug (11.1.1)
     minitest (5.14.1)
+    mysql2 (0.5.3)
     rake (13.0.1)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
+  benchmark-ips
   byebug
   minitest
   mysql-rb!
+  mysql2
   rake
 
 BUNDLED WITH

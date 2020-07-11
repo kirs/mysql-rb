@@ -8,3 +8,9 @@ gemspec
 
 gem 'byebug'
 gem 'minitest'
+
+group :bench do
+  gem 'mysql2'
+  gem 'benchmark-ips'
+end
+
