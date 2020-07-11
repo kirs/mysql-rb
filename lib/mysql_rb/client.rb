@@ -19,7 +19,8 @@ module MysqlRb
       @sock = MysqlRb::Socket.new(@connect_options.fetch(:host), @connect_options.fetch(:port))
       @sock.handshake(
         username: @connect_options.fetch(:username),
-        password: @connect_options[:password]
+        password: @connect_options[:password],
+        database: @connect_options[:database]
       )
     end
 

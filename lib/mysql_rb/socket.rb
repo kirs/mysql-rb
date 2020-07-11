@@ -21,11 +21,24 @@ module MysqlRb
       packet
     end
 
-    def handshake(username:, password:)
+    DEFAULT_CAPABILITY = 0x81bea205
+    def handshake(username:, password:, database:)
+      if username.empty?
+        raise ArgumentError, "username missing"
+      end
+
       packet = @packet_reader.read_packet
 
       server_hs = HandshakeUtils.parse_handshake(packet.data)
-      resp = HandshakeUtils.handshake_response(server_hs, username: username, password: password)
+
+      capability = DEFAULT_CAPABILITY
+      resp = HandshakeUtils.handshake_response(
+        server_hs,
+        capability,
+        username: username,
+        password: password,
+        database: database
+      )
       @sock.write(Packet.wrap(resp, 1))
       # TODO: @server_status = hr.server_status
       # @capabilities = ...

@@ -245,8 +245,15 @@ class MysqlRb::OmgTest < Minitest::Test
     end
   end
 
-  def new_client(opts = {})
-    MysqlRb::Client.new({ host: 'localhost', username: 'root' }.merge(opts))
+  def test_select_with_database
+    client = new_client
+    client.query("CREATE DATABASE IF NOT EXISTS tmp_test")
+    client.disconnect
+
+    client = new_client(database: 'tmp_test')
+    r = client.query("SELECT DATABASE()")
+    assert_equal 1, r.results.size
+    assert_equal ["tmp_test"], r.results.first.data
   end
 
   NOT_SHITTON = [1, 0, 0, 1, 3, 23, 0, 0, 2, 3, 100, 101, 102, 0, 0, 0, 1, 49, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 3, 3, 100, 101, 102, 0, 0, 0, 1, 50, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 4, 3, 100, 101, 102, 0, 0, 0, 1, 51, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 6, 0, 0, 5, 1, 49, 1, 50, 1, 51, 7, 0, 0, 6, 254, 0, 0, 2, 0, 0, 0]
@@ -317,5 +324,11 @@ class MysqlRb::OmgTest < Minitest::Test
 #       escape= 'Z';
 #       break;
 #     }
+  end
+
+  private
+
+  def new_client(opts = {})
+    MysqlRb::Client.new({ host: 'localhost', username: 'root' }.merge(opts))
   end
 end

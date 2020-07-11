@@ -49,23 +49,21 @@ module MysqlRb
 
     extend PacketHelpers
 
-    def handshake_response(server_handshake, username:, password:)
-      collation = 45 # UTF8MB4_GENERAL_CI
-      #  let collation = if server_version >= (5, 5, 3) {
-      #      UTF8MB4_GENERAL_CI
-      #  } else {
-      #      UTF8_GENERAL_CI
-      #  };
+    UTF8MB4_GENERAL_CI = 45
 
-      #  if let Some(_) = db_name {
-      #      client_flags = client_flags | CapabilityFlags::CLIENT_CONNECT_WITH_DB;
-      #  }
+    def handshake_response(server_handshake, capability, username:, password:, database:)
+      if Gem::Version.new(server_handshake.version) < Gem::Version.new("5.6")
+        raise "Unexpected server version: #{server_handshake.version}"
+      end
+
+      if database
+        capability = capability | Constants::CapabilityFlags::CLIENT_CONNECT_WITH_DB
+      end
 
       bytes = +"".encode('ASCII')
-
-      client_flags = 0x81bea205
-      bytes << [client_flags].pack("L<")
+      bytes << [capability].pack("L<")
       bytes << [0, 0, 0, 1].pack("c*") # max packet size
+      collation = UTF8MB4_GENERAL_CI
       bytes << [collation].pack("c")
       23.times do
         bytes << "\x00"
@@ -74,75 +72,54 @@ module MysqlRb
       bytes << username.encode('ASCII')
       bytes << "\x00"
 
-      #  if client_flags.contains(CapabilityFlags::CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
-      #      data.write_lenenc_int(scramble.len() as u64).unwrap();
-      #      data.extend_from_slice(scramble);
-      #  } else if client_flags.contains(CapabilityFlags::CLIENT_SECURE_CONNECTION) {
-      #      data.push(scramble.len() as u8);
-      #      data.extend_from_slice(scramble);
-      #  } else {
-      #      data.extend_from_slice(scramble);
-      #      data.push(0);
-      #  }
-      # no auth
-
-      # require'byebug';byebug
-      scramble = server_handshake.scramble_1 + server_handshake.scramble_2
-
-      # SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )
-
+      nonce = ""
       if password
+        scramble = server_handshake.scramble_1 + server_handshake.scramble_2
+        # SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )
         nonce = xor(sha1(password), sha1(scramble + sha1(sha1(password))))
-        bytes << length_binary(nonce)
+      end
+
+      if (capability & Constants::CapabilityFlags::CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) != 0
+        bytes << write_lenenc_str(nonce)
+      elsif capability & Constants::CapabilityFlags::CLIENT_SECURE_CONNECTION
+        # data.push(scramble.len() as u8);
+        # data.extend_from_slice(scramble);
+        raise NotImplementedError
       else
+        bytes << scramble.encode("ASCII")
         bytes << "\x00"
       end
-      # bytes << "\x00"
-      # bytes
 
-      #  if client_flags.contains(CapabilityFlags::CLIENT_CONNECT_WITH_DB) {
-      #      let database = db_name.unwrap_or("");
-      #      data.extend_from_slice(database.as_bytes());
-      #      data.push(0);
-      #  }
+      if (capability & Constants::CapabilityFlags::CLIENT_CONNECT_WITH_DB) != 0
+        bytes << database.encode("ASCII")
+        bytes << "\x00"
+      end
 
-      #  if client_flags.contains(CapabilityFlags::CLIENT_PLUGIN_AUTH) {
-      #      data.extend_from_slice(auth_plugin.as_bytes());
-      #      data.push(0);
-      #  }
-      #  if client_flags.contains(CapabilityFlags::CLIENT_CONNECT_ATTRS) {
-      #      let len = connect_attributes
-      #          .iter()
-      #          .map(|(k, v)| lenenc_str_len(k) + lenenc_str_len(v))
-      #          .sum::<usize>();
-      #      data.write_lenenc_int(len as u64).expect("out of memory");
+      if (capability & Constants::CapabilityFlags::CLIENT_PLUGIN_AUTH) != 0
+        bytes << "mysql_native_password".encode('ASCII')
+        bytes << "\x00"
+      end
 
-      #      for (name, value) in connect_attributes {
-      #          data.write_lenenc_str(name.as_bytes())
-      #              .expect("out of memory");
-      #          data.write_lenenc_str(value.as_bytes())
-      #              .expect("out of memory");
-      #      }
-      #  }
+      if (capability & Constants::CapabilityFlags::CLIENT_CONNECT_ATTRS) != 0
+        # empty conn attributes
+        bytes << "\x00"
 
-      bytes << "mysql_native_password".encode('ASCII')
-      bytes << "\x00"
+        #  if client_flags.contains(CapabilityFlags::CLIENT_CONNECT_ATTRS) {
+        #      let len = connect_attributes
+        #          .iter()
+        #          .map(|(k, v)| lenenc_str_len(k) + lenenc_str_len(v))
+        #          .sum::<usize>();
+        #      data.write_lenenc_int(len as u64).expect("out of memory");
 
-      # empty conn attributes
-      bytes << "\x00"
+        #      for (name, value) in connect_attributes {
+        #          data.write_lenenc_str(name.as_bytes())
+        #              .expect("out of memory");
+        #          data.write_lenenc_str(value.as_bytes())
+        #              .expect("out of memory");
+        #      }
+        #  }
+      end
 
-      # bytes << [
-      #   # 0x05, 0xa2, 0xbe, 0x81, # client capabilities
-      #   # 0x00, 0x00, 0x00, 0x01, # max packet
-      #   # 0x2d, # charset
-      #   # 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      #   # 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, # reserved
-      #   # 0x72, 0x6f, 0x6f, 0x74, 0x00, # username=root
-      #   0x00, # blank scramble
-      #   0x6d, 0x79, 0x73, 0x71, 0x6c, 0x5f, 0x6e, 0x61, 0x74, 0x69, 0x76, 0x65, 0x5f, 0x70,
-      #   0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x00, # mysql_native_password
-      #   0x00,
-      # ].pack("c*")
       bytes
     end
 

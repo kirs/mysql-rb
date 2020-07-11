@@ -2,7 +2,7 @@ module MysqlRb
   module PacketHelpers
     private
 
-    def length_binary(str)
+    def write_lenenc_str(str)
       return [str.length, str].pack("Ca*") if str.length <= 250
       return [str.length, str].pack("va*") if str.length <= 32767
       return [str.length, str].pack("Va*") if str.length <= 2147483647
@@ -61,6 +61,5 @@ module MysqlRb
       end
     end
   end
-
 end
 
