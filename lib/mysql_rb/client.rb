@@ -1,3 +1,4 @@
+# frozen-string-literal: true
 require 'socket'
 require 'logger'
 

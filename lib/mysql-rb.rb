@@ -1,3 +1,4 @@
+require_relative './mysql_rb/version'
 require_relative './mysql_rb/client'
 require_relative './mysql_rb/constants'
 require_relative './mysql_rb/helpers'

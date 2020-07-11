@@ -1,8 +1,14 @@
+PATH
+  remote: .
+  specs:
+    mysql-rb (0.1.0)
+
 GEM
   remote: https://rubygems.org/
   specs:
     byebug (11.1.1)
     minitest (5.14.1)
+    rake (13.0.1)
 
 PLATFORMS
   ruby
@@ -10,6 +16,8 @@ PLATFORMS
 DEPENDENCIES
   byebug
   minitest
+  mysql-rb!
+  rake
 
 BUNDLED WITH
    2.1.4
