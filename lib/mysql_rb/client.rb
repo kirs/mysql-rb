@@ -34,7 +34,7 @@ module MysqlRb
     end
 
     def query(sql)
-      assert_connected
+      connect unless connected?
 
       @sock.write_packet(@sock.query_command(sql))
 
@@ -42,7 +42,8 @@ module MysqlRb
     end
 
     def ping
-      raise NotImplementedError
+      assert_connected
+      @sock.ping
     end
 
     def escape(query)
@@ -51,7 +52,9 @@ module MysqlRb
     private
 
     def assert_connected
-      connect unless connected?
+      unless connected?
+        raise "Not connected"
+      end
     end
   end
 end

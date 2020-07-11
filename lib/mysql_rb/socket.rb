@@ -53,14 +53,20 @@ module MysqlRb
       raise MysqlRb::HandshakeError.new(error)
     end
 
-    # [0e] COM_PING
-    COM_QUERY = 3
+    COM_QUERY = 0x03
+    COM_PING = 0x0e
+
     def query_command(query)
       [COM_QUERY, query].pack('Ca*')
     end
 
     def write_packet(command)
       @sock.write(Packet.wrap(command, 0))
+    end
+
+    def ping
+      write_packet([COM_PING].pack('C'))
+      _packet = @packet_reader.read_packet
     end
 
     def read_packets
