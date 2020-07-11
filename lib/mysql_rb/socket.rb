@@ -2,6 +2,7 @@ module MysqlRb
   class Socket
     def initialize(addr, port)
       @sock = TCPSocket.new(addr, port)
+      @packet_reader = MysqlRb::PacketReader.new(@sock)
     rescue => error
       raise ConnectionError.new(error)
     end
@@ -20,10 +21,9 @@ module MysqlRb
     end
 
     def handshake
-      packet = read_hs_packet
+      packet = @packet_reader.read_packet
 
-      h = HandshakeUtils.parse_handshake(StringIO.new(packet.data))
-      puts h.inspect
+      server_hs = HandshakeUtils.parse_handshake(packet.data)
 
       hr = HandshakeUtils.handshake_response
       @sock.write(Packet.wrap(hr, 1))
@@ -51,7 +51,7 @@ module MysqlRb
     end
 
     def read_packets
-      MysqlRb::PacketReader.new(@sock).read
+      @packet_reader.read
     end
 
     def close

@@ -17,8 +17,6 @@ module MysqlRb
         end
       end
       def read(size)
-        puts "left in buffer: #{@buffer.size}, requesing: #{size}"
-        # require'byebug';byebug
         if @buffer.size < size
           @buffer += read_bytes(@buffer_size)
         end
@@ -33,31 +31,32 @@ module MysqlRb
       @buf = ReadBuffer.new(io)
     end
 
-    # TODO
     def read_packet
+      head = @buf.read(4)
+      len = head[0..2].unpack1("s<")
+      seq = head[3].unpack1("c")
+
+      data = @buf.read(len)
+      MysqlRb::Packet.new.tap do |pack|
+        pack.len = len
+        pack.seq = seq
+        pack.data = data
+      end
     end
 
     def read
       packets = []
       loop do
-        h = @buf.read(4)
-        packet_len = h[0..2].unpack1("s<")
-        seq = h[3].unpack1("c")
-
-        data = @buf.read(packet_len)
-        packets << MysqlRb::Packet.new.tap do |pack|
-          pack.len = packet_len
-          pack.seq = seq
-          pack.data = data
-        end
-
-        code = data.bytes.first # TODO: optimize!
-        if code == 0xfe || code == 0x00 || code == 0xff
-          # puts "eof detected!"
-          break
-        end
+        packet = read_packet
+        packets << packet
+        break if eof_packet?(packet)
       end
       packets
+    end
+
+    def eof_packet?(packet)
+      code = packet.data.bytes.first # TODO: optimize!
+      code == 0xfe || code == 0x00 || code == 0xff
     end
   end
 end

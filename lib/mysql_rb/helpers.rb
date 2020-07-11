@@ -68,6 +68,8 @@ module MysqlRb
     def parse_handshake(line)
       hs = HandshakePacket.new
 
+      line = StringIO.new(line)
+
       hs.protocol = line.getc.unpack1("c")
       version = ""
 
