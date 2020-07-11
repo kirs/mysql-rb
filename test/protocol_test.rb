@@ -228,4 +228,10 @@ class OmgTest < Minitest::Test
     packets = read_packets(io)
     assert_equal 103, packets.size
   end
+
+  def test_query_command
+    actual = query_command("select 1")
+    expected = [0x03, 0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x20, 0x31]
+    assert_equal expected, actual.unpack("c*")
+  end
 end

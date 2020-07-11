@@ -150,7 +150,6 @@ class ReadBuffer
   end
 
   def read(size)
-    require'byebug';byebug
     if @buffer.size < size
       @buffer += read_bytes(size)
     end
@@ -167,12 +166,11 @@ def read_packets(io)
   buf = ReadBuffer.new(io)
   packets = []
   loop do
-    puts "reading header..."
     h = buf.read(4)
     packet_len = h[0..2].pack("c*").unpack1("s<")
     seq = h[3]
 
-    puts "<server packet> len: #{packet_len}, seq: #{seq}"
+    # puts "<server packet> len: #{packet_len}, seq: #{seq}"
     data = buf.read(packet_len)
     packets << Packet.new.tap do |pack|
       pack.len = packet_len
@@ -181,9 +179,14 @@ def read_packets(io)
     end
 
     if data[0] == 0xfe || data[0] == 0x00
-      puts "eof detected!"
+      # puts "eof detected!"
       break
     end
   end
   packets
+end
+
+COM_QUERY = 3
+def query_command(query)
+  [COM_QUERY, query].pack('Ca*')
 end

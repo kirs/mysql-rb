@@ -27,9 +27,7 @@ else
 end
 
 loop do
-
-  a = [0x03, 0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x20, 0x31]
-  s.write(wrap_packet(a.pack("c*"), 0))
+  s.write(wrap_packet(query_command("select 1"), 0))
 
   packets = read_packets(s)
   puts packets.inspect
