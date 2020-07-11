@@ -4,18 +4,16 @@ Native MySQL client in Ruby.
 
 ## Why
 
-* No libmysqlclient or mariadb dependencies
+* No dependencies like libmysqlclient or mariadb-connector required
 * Written in Ruby and easy to contribute to
-* Should work on any interpreter (yes, JRuby and no JDBC fuckery with ActiveRecord)
+* Works on any Ruby interpreter (yes, JRuby and no JDBC/ActiveRecord issues)
 * Ready for async support
 
-Done:
+### TODO
 
-* Connect and handshake
-* Execute queries
-* Parse resultsets
+* ~Connect and handshake~
+* ~Execute queries~
+* ~Parse resultsets~
+* query escape
+* session tracking
 
-Todo saturday:
-
-* Simulate mysql2
-* escape

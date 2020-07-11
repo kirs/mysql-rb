@@ -23,11 +23,11 @@ module MysqlRb
       @fields
     end
 
-    # def results
-    #   # unless @state == WAIT_RESULT_SET_DONE
-    #   call
-    #   # end
-    # end
+    def results
+      # unless @state == WAIT_RESULT_SET_DONE
+      call
+      # end
+    end
 
     def self.from(packets)
       new(packets)
