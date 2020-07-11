@@ -1,6 +1,6 @@
 require 'logger'
 class Row
-  attr_accessor :columns, :data, :attributes
+  attr_accessor :fields, :data, :attributes
 
   def initialize
     self.data = []
@@ -8,8 +8,8 @@ class Row
   end
 
   def finalize
-    @columns.length.times do |x|
-      self.attributes[@columns[x].org_name] = @data[x]
+    @fields.length.times do |x|
+      self.attributes[@fields[x].org_name] = @data[x]
     end
   end
 
@@ -54,6 +54,7 @@ FIELD_TYPES = {
   0xfe => :string,
   0xff => :geometry
 }
+
 class Column
   attr_accessor :catalog, :db, :table, :org_table, :name, :org_name, :charsetnr, :length, :type, :flags, :decimal, :default
 
@@ -93,6 +94,15 @@ module PacketHelpers
       return data[0].unpack1("c")
     end
     value = data[offset+1..(length + offset)]
+  end
+
+  def get_lenenc_str(packet)
+    len, packet = get_length_binary(packet)
+    if len == 0
+      ["", packet]
+    else
+      [packet[0..len-1], packet[len..]]
+    end
   end
 
   def get_length_binary(data)
@@ -247,9 +257,12 @@ def wrap_packet(bytes, n)
 end
 
 class ReadBuffer
-  def initialize(io)
+  BUFFER_SIZE = 1024
+
+  def initialize(io, size: @buffer_size)
     @io = io
     @buffer = []
+    @buffer_size = BUFFER_SIZE
   end
 
   def read_bytes(size)
@@ -259,10 +272,9 @@ class ReadBuffer
       @io.read(size).bytes
     end
   end
-
   def read(size)
     if @buffer.size < size
-      @buffer += read_bytes(size)
+      @buffer += read_bytes(@buffer_size)
     end
 
     @buffer.shift(size)
@@ -302,65 +314,97 @@ def query_command(query)
   [COM_QUERY, query].pack('Ca*')
 end
 
-class Response
+class Result
   include PacketHelpers
 
-  WAIT_RESULT_SET_HEADER = 4
-  WAIT_RESULT_SET_FIELDS = 5
-  WAIT_RESULT_SET_DATA = 6
-  WAIT_RESULT_SET_END = 7
+  WAIT_RESULT_SET_HEADER = 1
+  WAIT_RESULT_SET_FIELDS = 2
+  WAIT_RESULT_SET_DATA = 3
+  WAIT_RESULT_SET_DONE = 4
 
   def initialize(packets)
     @packets = packets
-    @columns = []
+    @fields = []
     @results = []
     @state = WAIT_RESULT_SET_HEADER
+
+    materialize
   end
 
-  def call
-    @packets.each do |packet|
-      process_packet(packet.data.pack("c*"))
+  def fields
+    unless @state >= WAIT_RESULT_SET_DATA
+      raise "fields not read yet"
     end
+    @fields
+  end
+
+  # def results
+  #   # unless @state == WAIT_RESULT_SET_DONE
+  #   call
+  #   # end
+  # end
+
+  def self.from(packets)
+    new(packets)
   end
 
   attr_reader :results
 
-  def process_packet(packet)
-    if packet[0].unpack1("C") == 0xff
-      error_info = packet.unpack('CvCa5Z*')
+  private
 
-      errno = error_info[1]
-      sqlstate = error_info[3]
-      msg = error_info[4]
+  def materialize
+    @packets.each do |packet_obj|
+      packet = packet_obj.data.pack("c*")
 
-      raise "process_command(): error: #{errno}, sqlstate: #{sqlstate}, msg: #{msg}"
-    end
+      header = packet[0].unpack1("C")
+      case header
+      when 0xff
+        error_info = packet.unpack('CvCa5Z*')
 
-    case @state
-    when WAIT_RESULT_SET_HEADER
-      @columns_count = get_length_binary_nonmut(packet)
-      @state = WAIT_RESULT_SET_FIELDS
-    when WAIT_RESULT_SET_FIELDS
-      parse_col_def_packet(packet)
-      if @columns.size == @columns_count
-        @state = WAIT_RESULT_SET_DATA
+        errno = error_info[1]
+        sqlstate = error_info[3]
+        msg = error_info[4]
+
+        raise "process_command(): error: #{errno}, sqlstate: #{sqlstate}, msg: #{msg}"
+      when 0xfe, 0x00
+        # An OK packet is sent from the server to the client
+        # to signal successful completion of a command.
+        # As of MySQL 5.7.5, OK packes are also used to indicate EOF,
+        # and EOF packets are deprecated.
+
+        @state = WAIT_RESULT_SET_DONE
+        break
       end
-    when WAIT_RESULT_SET_DATA
-      process_row(packet)
-    else
-      raise "WTF is the state?"
+
+      case @state
+      when WAIT_RESULT_SET_HEADER
+        @fields_count = get_length_binary_nonmut(packet)
+        @state = WAIT_RESULT_SET_FIELDS
+      when WAIT_RESULT_SET_FIELDS
+        parse_col_def_packet(packet)
+        if @fields.size == @fields_count
+          @state = WAIT_RESULT_SET_DATA
+          # break if fields_only
+        end
+      when WAIT_RESULT_SET_DATA
+        process_row(packet)
+      when WAIT_RESULT_SET_DONE
+        break
+      else
+        raise "WTF is the state?"
+      end
     end
   end
 
   def parse_col_def_packet(packet)
     column = Column.new
 
-    catalog, packet = get_length_binary(packet)
-    db, packet = get_length_binary(packet)
-    table, packet = get_length_binary(packet)
-    org_table, packet = get_length_binary(packet)
-    name, packet = get_length_binary(packet)
-    org_name, packet = get_length_binary(packet)
+    catalog, packet = get_lenenc_str(packet)
+    db, packet = get_lenenc_str(packet)
+    table, packet = get_lenenc_str(packet)
+    _org_table, packet = get_lenenc_str(packet)
+    name, packet = get_lenenc_str(packet)
+    org_name, packet = get_lenenc_str(packet)
     other_info = packet.unpack('CvVCvCC2a*')
 
     charsetnr = other_info[1]
@@ -381,15 +425,16 @@ class Response
     column.flags = flags
     column.decimal = decimal
 
-    @columns << column
+    @fields << column
   end
 
   def process_row(packet)
     row = Row.new
-    row.columns = @columns
+    row.fields = @fields
 
-    @columns.each do |column|
-      value, packet = get_length_binary(packet)
+    @fields.each do |column|
+      value, packet = get_lenenc_str(packet)
+      # value, packet = get_length_binary(packet)
       row.data << value
     end
 
@@ -397,4 +442,7 @@ class Response
 
     @results << row
   end
+end
+
+def escape(query)
 end

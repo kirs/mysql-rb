@@ -31,15 +31,15 @@ s.write(wrap_packet(query_command("select 1"), 0))
 
 packets = read_packets(s)
 
-r = Response.new(packets)
-r.call
+r = Result.from(packets)
 puts r.results.inspect
 
 s.write(wrap_packet(query_command("select 1, 2, 3"), 0))
 
 packets = read_packets(s)
 
-r = Response.new(packets)
-r.call
+# puts packets.inspect
+
+r = Result.from(packets)
 puts r.results.inspect
 

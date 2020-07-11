@@ -228,10 +228,70 @@ class OmgTest < Minitest::Test
     packets = read_packets(io)
     assert_equal 103, packets.size
   end
+  def test_results_shitton
+    skip
+    io = StringIO.new(SHITTON.pack("c*"))
+    packets = read_packets(io)
+    r = Result.new(packets)
+    assert_equal 100, r.fields.size
+    r.fields.each_with_index do |f, i|
+      assert_equal (i+1).to_s.encode("ASCII-8BIT"), f.name
+    end
+  end
+
+  NOT_SHITTON = [1, 0, 0, 1, 3, 23, 0, 0, 2, 3, 100, 101, 102, 0, 0, 0, 1, 49, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 3, 3, 100, 101, 102, 0, 0, 0, 1, 50, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 4, 3, 100, 101, 102, 0, 0, 0, 1, 51, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 6, 0, 0, 5, 1, 49, 1, 50, 1, 51, 7, 0, 0, 6, 254, 0, 0, 2, 0, 0, 0]
+  def test_results
+    io = StringIO.new(NOT_SHITTON.pack("c*"))
+    packets = read_packets(io)
+
+    r = Result.new(packets)
+    assert_equal 3, r.fields.size
+    r.fields.each_with_index do |f, i|
+      assert_equal (i+1).to_s.encode("ASCII-8BIT"), f.name
+    end
+
+    assert_equal 1, r.results.size
+    row = r.results.first
+
+    # raise row.inspect
+    assert_equal ["1", "2", "3"], row.data
+    # r.results.each_with_index do |r, i|
+    #   assert_equal (i+1).to_s.encode("ASCII-8BIT"), f.name
+    # end
+    # raise r.fields.inspect
+    # assert_equal 103, packets.size
+  end
 
   def test_query_command
     actual = query_command("select 1")
     expected = [0x03, 0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x20, 0x31]
     assert_equal expected, actual.unpack("c*")
+  end
+
+  def test_escape
+    actual = escape("abc'def\"ghi\0jkl%mno")
+    expected = "abc\\'def\\\"ghi\\0jkl%mno"
+# case 0:				/* Must be escaped for 'mysql' */
+#       escape= '0';
+#       break;
+#     case '\n':				/* Must be escaped for logs */
+#       escape= 'n';
+#       break;
+#     case '\r':
+#       escape= 'r';
+#       break;
+#     case '\\':
+#       escape= '\\';
+#       break;
+#     case '\'':
+#       escape= '\'';
+#       break;
+#     case '"':				/* Better safe than sorry */
+#       escape= '"';
+#       break;
+#     case '\032':			/* This gives problems on Win32 */
+#       escape= 'Z';
+#       break;
+#     }
   end
 end
