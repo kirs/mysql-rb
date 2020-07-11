@@ -1,5 +1,6 @@
 require 'bundler/setup'
 require 'minitest/autorun'
+require 'byebug'
 require_relative '../lib'
 SHITTON = [
         0x01, 0x00, 0x00, 0x01, 0x64, 0x17, 0x00, 0x00, 0x02, 0x03, 0x64, 0x65, 0x66, 0x00, 0x00,
@@ -253,19 +254,25 @@ class OmgTest < Minitest::Test
     assert_equal 1, r.results.size
     row = r.results.first
 
-    # raise row.inspect
     assert_equal ["1", "2", "3"], row.data
-    # r.results.each_with_index do |r, i|
-    #   assert_equal (i+1).to_s.encode("ASCII-8BIT"), f.name
-    # end
-    # raise r.fields.inspect
-    # assert_equal 103, packets.size
   end
 
   def test_query_command
     actual = query_command("select 1")
     expected = [0x03, 0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x20, 0x31]
     assert_equal expected, actual.unpack("c*")
+  end
+
+  def test_datetime
+    client = Client.new({})
+    r = client.query("select now()")
+    assert_equal :datetime, r.fields.first.type_name
+
+    assert_equal 1, r.results.size
+    assert_equal 1, r.results.first.data.size
+    t = r.results.first.data.first
+    # assert_equal ["1", "2", "3"],
+    assert_equal Time.now.strftime("%Y-%m-%d"), t[0..9]
   end
 
   def test_escape

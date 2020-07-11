@@ -1,3 +1,4 @@
+require 'socket'
 require 'logger'
 class Row
   attr_accessor :fields, :data, :attributes
@@ -446,3 +447,69 @@ end
 
 def escape(query)
 end
+
+class Client
+  DEFAULT_OPTIONS = {
+    host: 'localhost',
+    port: 3306
+  }
+
+  def initialize(options)
+    @connect_options = DEFAULT_OPTIONS.merge(options)
+  end
+
+  def connect
+    @sock = TCPSocket.new(@connect_options.fetch(:host), @connect_options.fetch(:port))
+
+    line_raw = @sock.recv(1024)
+    line = StringIO.new(line_raw)
+
+    packetlen = line.read(3).unpack1('s<') # 3 bytes, s< is 16-bit signed, little endian
+    packetnum = line.getc.to_i
+    puts "<packet> len: #{packetlen}, num: #{packetnum}"
+
+    h = parse_handshake(line)
+    puts h.inspect
+
+    hr = handshake_response
+    @sock.write(wrap_packet(hr, 1))
+    # TODO: @server_status = hr.server_status
+    # @capabilities = ...
+
+    ok_packet = @sock.recv(1024)
+    if ok_packet[4] == "\x00"
+      puts "connection phase: success"
+    else
+      raise "Unexpected packet: #{ok_packet}"
+    end
+  end
+
+  def connected?
+    !!@sock
+  end
+
+  def disconnect
+    @sock.close
+    @sock = nil
+  end
+
+  def query(sql)
+    assert_connected
+
+    @sock.write(wrap_packet(query_command(sql), 0))
+
+    packets = read_packets(@sock)
+
+    Result.from(packets)
+  end
+
+  def ping
+    raise NotImplementedError
+  end
+
+  def assert_connected
+    connect unless connected?
+  end
+end
+
+
