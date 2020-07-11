@@ -1,6 +1,7 @@
+require 'bundler/setup'
 require 'byebug'
 
-require_relative './lib/mysql-rb'
+require 'mysql-rb'
 
 client = MysqlRb::Client.new(host: 'localhost', username: 'kirs', password: 'password')
 r = client.query("select 1, 2, 3")
