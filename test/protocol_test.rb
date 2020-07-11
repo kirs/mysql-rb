@@ -215,7 +215,7 @@ SHITTON = [
 class OmgTest < Minitest::Test
   def test_parse_handshake
     f = "\n8.0.17\x00\"\x00\x00\x00!\x12NW%hq-\x00\xFF\xFF-\x02\x00\xFF\xC3\x15\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00V\aN)#h\x01%S\\q\f\x00caching_sha2_password\x00"
-    hs = parse_handshake(StringIO.new(f))
+    hs = HandshakeUtils.parse_handshake(StringIO.new(f))
     assert_equal 10, hs.protocol
     assert_equal "8.0.17", hs.version
     assert_equal 34, hs.connid
@@ -271,8 +271,14 @@ class OmgTest < Minitest::Test
     assert_equal 1, r.results.size
     assert_equal 1, r.results.first.data.size
     t = r.results.first.data.first
-    # assert_equal ["1", "2", "3"],
     assert_equal Time.now.strftime("%Y-%m-%d"), t[0..9]
+  end
+
+  def test_connection_error
+    client = Client.new(host: 'localhost', port: 9999)
+    assert_raises(Client::ConnectionError) do
+      client.connect
+    end
   end
 
   def test_escape
