@@ -1,6 +1,126 @@
+require 'logger'
+class Row
+  attr_accessor :columns, :data, :attributes
+
+  def initialize
+    self.data = []
+    self.attributes = {}
+  end
+
+  def finalize
+    @columns.length.times do |x|
+      self.attributes[@columns[x].org_name] = @data[x]
+    end
+  end
+
+  def to_s
+    "#<AsyncMysql::Row attributes=#{attributes}>"
+  end
+
+  def method_missing(symbol, *args)
+    if self.attributes.has_key? symbol.to_s
+      return self.attributes[symbol.to_s]
+    else
+      super(symbol, args)
+    end
+  end
+end
+FIELD_TYPES = {
+  0x00 => :decimal,
+  0x01 => :tiny,
+  0x02 => :short,
+  0x03 => :long,
+  0x04 => :float,
+  0x05 => :double,
+  0x06 => :null,
+  0x07 => :timestamp,
+  0x08 => :longlong,
+  0x09 => :int24,
+  0x0a => :date,
+  0x0b => :time,
+  0x0c => :datetime,
+  0x0d => :year,
+  0x0e => :newdate,
+  0x0f => :varchar,
+  0x10 => :bit,
+  0xf6 => :newdecimal,
+  0xf7 => :enum,
+  0xf8 => :set,
+  0xf9 => :tiny_blob,
+  0xfa => :medium_blob,
+  0xfb => :long_blob,
+  0xfc => :blob,
+  0xfd => :var_string,
+  0xfe => :string,
+  0xff => :geometry
+}
+class Column
+  attr_accessor :catalog, :db, :table, :org_table, :name, :org_name, :charsetnr, :length, :type, :flags, :decimal, :default
+
+  def type_name
+    raise Exception.new("Unknown field type: #{self.type}") if not FIELD_TYPES.has_key? self.type
+    return FIELD_TYPES[self.type]
+  end
+
+  def to_s
+    "#<Column column=#{self.org_name}, type=#{type_name}>"
+  end
+end
 
 class HandshakePacket
   attr_accessor :protocol, :version, :connid, :cap, :extcap, :server_status, :encoding
+end
+
+module PacketHelpers
+  def length_binary(str)
+    return [str.length, str].pack("Ca*") if str.length <= 250
+    return [str.length, str].pack("va*") if str.length <= 32767
+    return [str.length, str].pack("Va*") if str.length <= 2147483647
+    return [str.length, str].pack("Qa*")
+  end
+
+  def get_length_binary_nonmut(data)
+    if data[0].unpack1("c") == 252
+      b, length = data.unpack('Cv')
+      offset = 2
+    elsif data[0].unpack1("c") == 253
+      b, length = data.unpack('CV')
+      offset = 4
+    elsif data[0].unpack1("c") == 254
+      b, length = data.unpack('CQ')
+      offset = 8
+    else
+      return data[0].unpack1("c")
+    end
+    value = data[offset+1..(length + offset)]
+  end
+
+  def get_length_binary(data)
+    raise Exception.new("Unable to parse length binary: no data") if data.nil? or data.empty?
+
+    if data[0].unpack1("c") == 252
+      _b, length = data.unpack('Cv')
+      offset = 2
+    elsif data[0].unpack1("c") == 253
+      _b, length = data.unpack('CV')
+      offset = 4
+    elsif data[0].unpack1("c") == 254
+      _b, length = data.unpack('CQ')
+      offset = 8
+    else
+      return [data[0].unpack1("c"), data[1..]]
+    end
+
+    if data[0] == 251
+      #raise Exception.new("unexpected NULL column value, only expected in row data packet") if @substate != SubState::WAIT_RESULT_SET_DATA
+      return [nil, data.slice(1, data.length - 1)]
+    else
+      raise Exception.new("Unable to parse length binary: expected: #{length}, got: #{data.length - 1}") if (data.length - 1) < length
+      sliced = data.slice(length + offset + 1, data.length - length - 1)
+      value = data[offset+1..(length + offset)]
+      return [value, sliced]
+    end
+  end
 end
 
 def parse_handshake(line)
@@ -46,16 +166,11 @@ def handshake_response
   #      client_flags = client_flags | CapabilityFlags::CLIENT_CONNECT_WITH_DB;
   #  }
 
-  bytes = "".encode("ASCII")
+  bytes = ""
 
   client_flags = 0x81bea205
   bytes << [client_flags].pack("L<")
-  # byebug
-  #  let mut data = Vec::with_capacity(1024);
-  #  data.write_u32::<LE>(client_flags.bits()).unwrap();
   bytes << [0, 0, 0, 1].pack("c*")
-  #  data.extend_from_slice(&[0x00, 0x00, 0x00, 0x01]);
-  #  data.push(collation as u8);
   bytes << [collation].pack("c")
   23.times do
     bytes << "\x00"
@@ -63,12 +178,8 @@ def handshake_response
 
 
   bytes << "root".encode('ASCII')
-  # "root".chars.each do |c|
-  #   bytes << [c].pack("A")
-  # end
   bytes << "\x00"
 
-  # byebug
   #  data.resize(data.len() + 23, 0);
   #  data.extend_from_slice(user.unwrap_or("").as_bytes());
   #  data.push(0);
@@ -178,7 +289,7 @@ def read_packets(io)
       pack.data = data
     end
 
-    if data[0] == 0xfe || data[0] == 0x00
+    if data[0] == 0xfe || data[0] == 0x00 || data[0] == 0xff
       # puts "eof detected!"
       break
     end
@@ -189,4 +300,101 @@ end
 COM_QUERY = 3
 def query_command(query)
   [COM_QUERY, query].pack('Ca*')
+end
+
+class Response
+  include PacketHelpers
+
+  WAIT_RESULT_SET_HEADER = 4
+  WAIT_RESULT_SET_FIELDS = 5
+  WAIT_RESULT_SET_DATA = 6
+  WAIT_RESULT_SET_END = 7
+
+  def initialize(packets)
+    @packets = packets
+    @columns = []
+    @results = []
+    @state = WAIT_RESULT_SET_HEADER
+  end
+
+  def call
+    @packets.each do |packet|
+      process_packet(packet.data.pack("c*"))
+    end
+  end
+
+  attr_reader :results
+
+  def process_packet(packet)
+    if packet[0].unpack1("C") == 0xff
+      error_info = packet.unpack('CvCa5Z*')
+
+      errno = error_info[1]
+      sqlstate = error_info[3]
+      msg = error_info[4]
+
+      raise "process_command(): error: #{errno}, sqlstate: #{sqlstate}, msg: #{msg}"
+    end
+
+    case @state
+    when WAIT_RESULT_SET_HEADER
+      @columns_count = get_length_binary_nonmut(packet)
+      @state = WAIT_RESULT_SET_FIELDS
+    when WAIT_RESULT_SET_FIELDS
+      parse_col_def_packet(packet)
+      if @columns.size == @columns_count
+        @state = WAIT_RESULT_SET_DATA
+      end
+    when WAIT_RESULT_SET_DATA
+      process_row(packet)
+    else
+      raise "WTF is the state?"
+    end
+  end
+
+  def parse_col_def_packet(packet)
+    column = Column.new
+
+    catalog, packet = get_length_binary(packet)
+    db, packet = get_length_binary(packet)
+    table, packet = get_length_binary(packet)
+    org_table, packet = get_length_binary(packet)
+    name, packet = get_length_binary(packet)
+    org_name, packet = get_length_binary(packet)
+    other_info = packet.unpack('CvVCvCC2a*')
+
+    charsetnr = other_info[1]
+    length = other_info[2]
+    type = other_info[3]
+    flags = other_info[4]
+    decimal = other_info[5]
+
+    column.catalog = catalog
+    column.db = db
+    column.table = table
+    column.org_table = table
+    column.name = name
+    column.org_name = org_name
+    column.charsetnr = charsetnr
+    column.length = length
+    column.type = type
+    column.flags = flags
+    column.decimal = decimal
+
+    @columns << column
+  end
+
+  def process_row(packet)
+    row = Row.new
+    row.columns = @columns
+
+    @columns.each do |column|
+      value, packet = get_length_binary(packet)
+      row.data << value
+    end
+
+    row.finalize
+
+    @results << row
+  end
 end

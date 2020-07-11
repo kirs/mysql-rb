@@ -26,12 +26,20 @@ else
   raise "Unexpected packet: #{ok_packet}"
 end
 
-loop do
-  s.write(wrap_packet(query_command("select 1"), 0))
+# loop do
+s.write(wrap_packet(query_command("select 1"), 0))
 
-  packets = read_packets(s)
-  puts packets.inspect
+packets = read_packets(s)
 
-  break
-end
+r = Response.new(packets)
+r.call
+puts r.results.inspect
+
+s.write(wrap_packet(query_command("select 1, 2, 3"), 0))
+
+packets = read_packets(s)
+
+r = Response.new(packets)
+r.call
+puts r.results.inspect
 
