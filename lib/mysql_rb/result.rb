@@ -39,7 +39,7 @@ module MysqlRb
 
     def materialize
       @packets.each do |packet_obj|
-        packet = packet_obj.data.pack("c*")
+        packet = packet_obj.data
 
         header = packet[0].unpack1("C")
         case header
