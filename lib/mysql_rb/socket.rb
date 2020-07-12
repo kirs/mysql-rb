@@ -8,6 +8,9 @@ module MysqlRb
 
     DEFAULT_CAPABILITY = 0x81bea205
 
+    UTF8MB4_GENERAL_CI = 45
+    DEFAULT_COLLATION = UTF8MB4_GENERAL_CI
+
     def initialize(addr, port)
       @sock = TCPSocket.new(addr, port)
       @packet_reader = MysqlRb::PacketReader.new(@sock)
@@ -15,7 +18,7 @@ module MysqlRb
       raise ConnectionError.new(error)
     end
 
-    def handshake(username:, password:, database:)
+    def handshake(username:, password:, database:, flags: [])
       if username.empty?
         raise ArgumentError, "username missing"
       end
@@ -25,16 +28,17 @@ module MysqlRb
       server_hs = HandshakeUtils.parse_handshake(packet.data)
 
       capability = DEFAULT_CAPABILITY
+      # TODO: support flags
+
       resp = HandshakeUtils.handshake_response(
         server_hs,
         capability,
         username: username,
         password: password,
-        database: database
+        database: database,
+        collation: DEFAULT_COLLATION
       )
       @sock.write(Packet.wrap(resp, 1))
-      # TODO: @server_status = hr.server_status
-      # @capabilities = ...
 
       ok_packet = @sock.recv(1024)
       if ok_packet[4] != OK_PACKET

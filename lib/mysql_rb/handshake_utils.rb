@@ -49,9 +49,8 @@ module MysqlRb
 
     extend PacketHelpers
 
-    UTF8MB4_GENERAL_CI = 45
 
-    def handshake_response(server_handshake, capability, username:, password:, database:)
+    def handshake_response(server_handshake, capability, username:, password:, database:, collation:)
       if Gem::Version.new(server_handshake.version) < Gem::Version.new("5.6")
         raise "Unexpected server version: #{server_handshake.version}"
       end
@@ -67,7 +66,6 @@ module MysqlRb
       bytes = +"".encode('ASCII')
       bytes << [capability].pack("L<")
       bytes << [0, 0, 0, 1].pack("c*") # max packet size
-      collation = UTF8MB4_GENERAL_CI
       bytes << [collation].pack("c")
       23.times do
         bytes << "\x00"
