@@ -27,9 +27,9 @@ module MysqlRb
     def each(as: :hash, symbolize_keys: false, &block)
       case as
       when :array
-        results.map(&:data).each(&block)
+        results.lazy.map(&:data).each(&block)
       when :hash
-        results.map { |r| r.as_hash(@fields, symbolize_keys: symbolize_keys) }.each(&block)
+        results.lazy.map { |r| r.as_hash(@fields, symbolize_keys: symbolize_keys) }.each(&block)
       else
         raise ArgumentError, "unknown :as value: #{as}. Supported values: :hash, :array"
       end
