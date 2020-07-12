@@ -16,6 +16,7 @@ module MysqlRb
           @io.read(size)
         end
       end
+
       def read(size)
         if @buffer.size < size
           @buffer += read_bytes(@buffer_size)

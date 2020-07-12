@@ -211,6 +211,16 @@ SHITTON = [
     ]
 
 class MysqlRb::OmgTest < Minitest::Test
+  def test_parse_handshake_error
+    f = "\xff\x10\x04\x54\x6f\x6f\x20\x6d\x61\x6e\x79\x20" \
+      "\x63\x6f\x6e\x6e\x65\x63\x74\x69\x6f\x6e\x73"
+
+    error = assert_raises(MysqlRb::HandshakeError) do
+      MysqlRb::HandshakeUtils.parse_handshake(f)
+    end
+    assert_equal "Error 1040: Too many connections", error.message
+  end
+
   def test_parse_handshake
     f = "\n8.0.17\x00\"\x00\x00\x00!\x12NW%hq-\x00\xFF\xFF-\x02\x00\xFF\xC3\x15\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00V\aN)#h\x01%S\\q\f\x00caching_sha2_password\x00"
     hs = MysqlRb::HandshakeUtils.parse_handshake(f)

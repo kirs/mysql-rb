@@ -4,12 +4,17 @@ module MysqlRb
   module HandshakeUtils
     extend self
 
-    def parse_handshake(line)
+    def parse_handshake(raw_line)
       hs = HandshakePacket.new
+      line = StringIO.new(raw_line)
 
-      line = StringIO.new(line)
-
-      hs.protocol = line.getc.unpack1("c")
+      protocol_or_error = line.getc
+      if protocol_or_error == "\xFF"
+        errno = line.read(2).unpack1("S<")
+        msg = line.read
+        raise HandshakeError, "Error #{errno}: #{msg}"
+      end
+      hs.protocol = protocol_or_error.unpack1("c")
       hs.version = read_str_null(line)
 
       hs.connid = line.read(4).unpack1('V')
@@ -48,7 +53,6 @@ module MysqlRb
     end
 
     extend PacketHelpers
-
 
     def handshake_response(server_handshake, capability, username:, password:, database:, collation:)
       if Gem::Version.new(server_handshake.version) < Gem::Version.new("5.6")
