@@ -247,13 +247,13 @@ class MysqlRb::OmgTest < Minitest::Test
 
     client = new_client(database: 'tmp_test')
     r = client.query("SELECT DATABASE()")
-    assert_equal 1, r.results.size
-    assert_equal ["tmp_test"], r.results.first.data
+    assert_equal 1, r.to_a.size
+    assert_equal({"DATABASE()" => "tmp_test"}, r.first)
   end
 
   def test_query_command
-    skip
-    actual = new_client.send(:query_command, "select 1")
+    sock = MysqlRb::Socket.new("localhost", 3306)
+    actual = sock.query_command("select 1")
     expected = [0x03, 0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x20, 0x31]
     assert_equal expected, actual.unpack("c*")
   end
@@ -263,9 +263,9 @@ class MysqlRb::OmgTest < Minitest::Test
     r = client.query("select now()")
     assert_equal :datetime, r.fields.first.type_name
 
-    assert_equal 1, r.results.size
-    assert_equal 1, r.results.first.data.size
-    t = r.results.first.data.first
+    assert_equal 1, r.to_a.size
+    assert_equal 1, r.first.size
+    t = r.first.values.first
     assert_match /(\d){4}-(\d){2}-(\d){2}/, t[0..9]
   end
 
