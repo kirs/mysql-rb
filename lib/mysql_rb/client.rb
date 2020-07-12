@@ -51,7 +51,42 @@ module MysqlRb
       @sock.ping
     end
 
-    def escape(query)
+    # libmysqlclient is a lot more sophisticated in escaping chars.
+    # It requires connection establish to do escaping based
+    # on the current encoding.
+    # This adapter only supports UTF8MB4_GENERAL_CI
+    # which allowed to greatly simplify escaping.
+    #
+    # Most of the logic is borrowed from functions on libmysqlclient:
+    # * mysql_real_escape_string_quote
+    # * escape_string_for_mysql
+    def escape(string)
+      out = +""
+      string.chars.each do |char|
+        escape = nil
+        case char
+        when "\0"
+          escape = '0'
+        when "\n"				# Must be escaped for logs */
+          escape= 'n'
+        when "\r"
+          escape= 'r';
+        when "\\"
+          escape= '\\';
+        when '\''
+          escape= '\'';
+        when '"'				# Better safe than sorry */
+          escape= '"';
+        end
+
+        if escape
+          out << '\\'
+          out << escape
+        else
+          out << char
+        end
+      end
+      out
     end
 
     private

@@ -286,28 +286,14 @@ class MysqlRb::OmgTest < Minitest::Test
     client = new_client
     actual = client.escape("abc'def\"ghi\0jkl%mno")
     expected = "abc\\'def\\\"ghi\\0jkl%mno"
-# case 0:				/* Must be escaped for 'mysql' */
-#       escape= '0';
-#       break;
-#     case '\n':				/* Must be escaped for logs */
-#       escape= 'n';
-#       break;
-#     case '\r':
-#       escape= 'r';
-#       break;
-#     case '\\':
-#       escape= '\\';
-#       break;
-#     case '\'':
-#       escape= '\'';
-#       break;
-#     case '"':				/* Better safe than sorry */
-#       escape= '"';
-#       break;
-#     case '\032':			/* This gives problems on Win32 */
-#       escape= 'Z';
-#       break;
-#     }
+    assert_equal expected, actual
+  end
+
+  def test_escape_multibyte
+    client = new_client
+    actual = client.escape("ø\nø")
+    expected = "ø\\nø"
+    assert_equal expected, actual
   end
 
   private
