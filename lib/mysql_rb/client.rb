@@ -38,6 +38,10 @@ module MysqlRb
       @sock = nil
     end
 
+    def close
+      disconnect
+    end
+
     def query(sql)
       connect unless connected?
 

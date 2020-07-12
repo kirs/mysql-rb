@@ -276,7 +276,7 @@ class MysqlRb::OmgTest < Minitest::Test
     assert_equal 1, r.to_a.size
     assert_equal 1, r.first.size
     t = r.first.values.first
-    assert_match /(\d){4}-(\d){2}-(\d){2}/, t[0..9]
+    assert_match(/(\d){4}-(\d){2}-(\d){2}/, t[0..9])
   end
 
   def test_connection_error
