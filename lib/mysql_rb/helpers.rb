@@ -10,51 +10,49 @@ module MysqlRb
     end
 
     def get_length_binary_nonmut(data)
-      if data[0].unpack1("c") == 252
-        b, length = data.unpack('Cv')
-        offset = 2
-      elsif data[0].unpack1("c") == 253
-        b, length = data.unpack('CV')
-        offset = 4
-      elsif data[0].unpack1("c") == 254
-        b, length = data.unpack('CQ')
-        offset = 8
-      else
-        return data[0].unpack1("c")
-      end
-      value = data[offset+1..(length + offset)]
-    end
-
-    def get_lenenc_str(packet)
-      len, packet = get_length_binary(packet)
-      if len == 0
-        ["", packet]
-      else
-        [packet[0..len-1], packet[len..]]
-      end
-    end
-
-    def get_length_binary(data)
-      raise Exception.new("Unable to parse length binary: no data") if data.nil? or data.empty?
-
-      if data[0].unpack1("c") == 252
+      if data[0].unpack1("C") == 252
         _b, length = data.unpack('Cv')
         offset = 2
-      elsif data[0].unpack1("c") == 253
+      elsif data[0].unpack1("C") == 253
         _b, length = data.unpack('CV')
         offset = 4
-      elsif data[0].unpack1("c") == 254
+      elsif data[0].unpack1("C") == 254
         _b, length = data.unpack('CQ')
         offset = 8
       else
-        return [data[0].unpack1("c"), data[1..]]
+        return data[0].unpack1("C")
+      end
+      data[offset+1..(length + offset)]
+    end
+
+    def get_lenenc_str(data)
+      if data.nil? or data.empty?
+        raise StandardError.new("Unable to parse length binary: no data")
       end
 
-      if data[0] == 251
+      if data[0].unpack1("C") == 252
+        _b, length = data.unpack('Cv')
+        offset = 2
+      elsif data[0].unpack1("C") == 253
+        _b, length = data.unpack('CV')
+        offset = 4
+      elsif data[0].unpack1("C") == 254
+        _b, length = data.unpack('CQ')
+        offset = 8
+      else
+        len = data[0].unpack1("C")
+        if len == 0
+          return ["", data[1..]]
+        else
+          return [data[1..len], data[(len+1)..]]
+        end
+      end
+
+      if data[0].unpack1("C") == 251
         #raise Exception.new("unexpected NULL column value, only expected in row data packet") if @substate != SubState::WAIT_RESULT_SET_DATA
         return [nil, data.slice(1, data.length - 1)]
       else
-        raise Exception.new("Unable to parse length binary: expected: #{length}, got: #{data.length - 1}") if (data.length - 1) < length
+        raise StandardError.new("Unable to parse length binary: expected: #{length}, got: #{data.length - 1}") if (data.length - 1) < length
         sliced = data.slice(length + offset + 1, data.length - length - 1)
         value = data[offset+1..(length + offset)]
         return [value, sliced]

@@ -295,10 +295,4 @@ class MysqlRb::OmgTest < Minitest::Test
     expected = "ø\\nø"
     assert_equal expected, actual
   end
-
-  private
-
-  def new_client(opts = {})
-    MysqlRb::Client.new({ host: 'localhost', username: 'root' }.merge(opts))
-  end
 end

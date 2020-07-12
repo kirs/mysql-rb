@@ -143,7 +143,6 @@ module MysqlRb
 
       @fields.each do |column|
         value, packet = get_lenenc_str(packet)
-        # value, packet = get_length_binary(packet)
         row.data << value
       end
 
