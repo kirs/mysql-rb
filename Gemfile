@@ -12,5 +12,6 @@ gem 'minitest'
 group :bench do
   gem 'mysql2'
   gem 'benchmark-ips'
+  gem 'stackprof'
 end
 

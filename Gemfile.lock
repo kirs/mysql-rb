@@ -11,6 +11,7 @@ GEM
     minitest (5.14.1)
     mysql2 (0.5.3)
     rake (13.0.1)
+    stackprof (0.2.15)
 
 PLATFORMS
   ruby
@@ -22,6 +23,7 @@ DEPENDENCIES
   mysql-rb!
   mysql2
   rake
+  stackprof
 
 BUNDLED WITH
    2.1.4
