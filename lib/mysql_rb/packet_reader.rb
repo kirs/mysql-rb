@@ -3,10 +3,10 @@ module MysqlRb
     class ReadBuffer
       BUFFER_SIZE = 1024
 
-      def initialize(io, size: @buffer_size)
+      def initialize(io, size: BUFFER_SIZE)
         @io = io
         @buffer = ""
-        @buffer_size = BUFFER_SIZE
+        @buffer_size = size
       end
 
       def read_bytes(size)

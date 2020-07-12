@@ -9,6 +9,7 @@ module MysqlRb
     }
 
     def initialize(options)
+      @sock = nil
       @connect_options = DEFAULT_OPTIONS.merge(options)
       if @connect_options[:sock]
         raise NotImplementedError, "connecting to unix socket is not supported"
