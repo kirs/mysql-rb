@@ -251,23 +251,6 @@ class MysqlRb::OmgTest < Minitest::Test
     assert_equal ["tmp_test"], r.results.first.data
   end
 
-  NOT_SHITTON = [1, 0, 0, 1, 3, 23, 0, 0, 2, 3, 100, 101, 102, 0, 0, 0, 1, 49, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 3, 3, 100, 101, 102, 0, 0, 0, 1, 50, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 23, 0, 0, 4, 3, 100, 101, 102, 0, 0, 0, 1, 51, 0, 12, 63, 0, 1, 0, 0, 0, 8, 129, 0, 0, 0, 0, 6, 0, 0, 5, 1, 49, 1, 50, 1, 51, 7, 0, 0, 6, 254, 0, 0, 2, 0, 0, 0]
-  def test_results
-    io = StringIO.new(NOT_SHITTON.pack("c*"))
-    packets = MysqlRb::PacketReader.new(io).read
-
-    r = MysqlRb::Result.new(packets)
-    assert_equal 3, r.fields.size
-    r.fields.each_with_index do |f, i|
-      assert_equal (i+1).to_s.encode("ASCII-8BIT"), f.name
-    end
-
-    assert_equal 1, r.results.size
-    row = r.results.first
-
-    assert_equal ["1", "2", "3"], row.data
-  end
-
   def test_query_command
     skip
     actual = new_client.send(:query_command, "select 1")

@@ -1,6 +1,7 @@
 module MysqlRb
   class Result
     include PacketHelpers
+    include Enumerable
 
     WAIT_RESULT_SET_HEADER = 1
     WAIT_RESULT_SET_FIELDS = 2
@@ -13,7 +14,7 @@ module MysqlRb
       @results = []
       @state = WAIT_RESULT_SET_HEADER
 
-      materialize
+      materialize(false)
     end
 
     def fields
@@ -23,22 +24,35 @@ module MysqlRb
       @fields
     end
 
+    def each(&block)
+      results.each(&block)
+    end
+
     def results
-      # unless @state == WAIT_RESULT_SET_DONE
-      call
-      # end
+      materialize(true)
+      @results
     end
 
     def self.from(packets)
       new(packets)
     end
 
-    attr_reader :results
+    def server_status
+      materialize(true)
+      @server_status
+    end
+
+    def warning_count
+      materialize(true)
+      @warning_count
+    end
 
     private
 
-    def materialize
-      @packets.each do |packet_obj|
+    def materialize(full)
+      return if @state == WAIT_RESULT_SET_DONE
+      loop do
+        packet_obj = @packets.shift
         packet = packet_obj.data
 
         header = packet[0].unpack1("C")
@@ -57,6 +71,9 @@ module MysqlRb
           # As of MySQL 5.7.5, OK packes are also used to indicate EOF,
           # and EOF packets are deprecated.
 
+          @warning_count = packet[1..2].unpack1("S<")
+          @server_status = packet[3..4].unpack1("S<")
+
           @state = WAIT_RESULT_SET_DONE
           break
         end
@@ -69,14 +86,14 @@ module MysqlRb
           parse_col_def_packet(packet)
           if @fields.size == @fields_count
             @state = WAIT_RESULT_SET_DATA
-            # break if fields_only
+            break if !full
           end
         when WAIT_RESULT_SET_DATA
           process_row(packet)
         when WAIT_RESULT_SET_DONE
           break
         else
-          raise "WTF is the state?"
+          raise "Unknown state: #{@state}"
         end
       end
     end
