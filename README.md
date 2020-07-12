@@ -16,7 +16,9 @@ Native MySQL client in Ruby.
 * ~Parse resultsets~
 * ~query escape~
 * SSL support
+* Type casting
 * Support for `CLIENT_SESSION_TRACK`
+* Custom error classes based on error number
 
 ### Design choices
 
