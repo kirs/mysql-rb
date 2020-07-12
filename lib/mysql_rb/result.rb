@@ -24,13 +24,15 @@ module MysqlRb
       @fields
     end
 
-    def each(&block)
-      results.each(&block)
-    end
-
-    def results
-      materialize(true)
-      @results
+    def each(as: :hash, symbolize_keys: false, &block)
+      case as
+      when :array
+        results.map(&:data).each(&block)
+      when :hash
+        results.map { |r| r.as_hash(@fields, symbolize_keys: symbolize_keys) }.each(&block)
+      else
+        raise ArgumentError, "unknown :as value: #{as}. Supported values: :hash, :array"
+      end
     end
 
     def self.from(packets)
@@ -48,6 +50,12 @@ module MysqlRb
     end
 
     private
+
+    # TODO: rename to rows?
+    def results
+      materialize(true)
+      @results
+    end
 
     def materialize(full)
       return if @state == WAIT_RESULT_SET_DONE
@@ -132,7 +140,6 @@ module MysqlRb
 
     def process_row(packet)
       row = Row.new
-      row.fields = @fields
 
       @fields.each do |column|
         value, packet = get_lenenc_str(packet)
@@ -140,10 +147,7 @@ module MysqlRb
         row.data << value
       end
 
-      row.finalize
-
       @results << row
     end
   end
-
 end

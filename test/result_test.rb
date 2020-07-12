@@ -19,10 +19,10 @@ class MysqlRb::ResultTest < Minitest::Test
 
     assert_equal MysqlRb::Result::WAIT_RESULT_SET_DATA, r.state
 
-    assert_equal 1, r.results.size
-    row = r.results.first
+    assert_equal 1, r.to_a.size
+    row = r.first
 
-    assert_equal ["1", "2", "3"], row.data
+    assert_equal({"1" => "1", "2" => "2", "3" => "3" }, row)
 
     assert_equal MysqlRb::Result::WAIT_RESULT_SET_DONE, r.state
   end
@@ -33,9 +33,44 @@ class MysqlRb::ResultTest < Minitest::Test
     i = 0
     r.each do |row|
       i += 1
-      assert_equal ["1", "2", "3"], row.data
+      assert_equal({"1" => "1", "2" => "2", "3" => "3" }, row)
     end
     assert_equal 1, i
+
+    r.each(as: :hash, symbolize_keys: true) do |row|
+      assert_equal({:"1" => "1", :"2" => "2", :"3" => "3" }, row)
+    end
+
+    r.each(as: :array) do |row|
+      assert_equal(["1", "2", "3"], row)
+    end
+
+    assert_raises(ArgumentError) do
+      r.each(as: :lol) { }
+    end
+  end
+
+  def test_results_as_hash
+    # rows = []
+    # rows << MysqlRb::Row.new.tap do |row|
+    #   row.data << "1a"
+    #   row.data << "2b"
+    # end
+
+    fields = []
+    fields << MysqlRb::Column.new.tap do |col|
+      col.name = "one"
+    end
+    fields << MysqlRb::Column.new.tap do |col|
+      col.name = "two"
+    end
+
+    row = MysqlRb::Row.new
+    row.data << "1"
+    row.data << "2"
+
+    assert_equal({ "one" => "1", "two" => "2" }, row.as_hash(fields))
+    assert_equal({ one: "1", two: "2" }, row.as_hash(fields, symbolize_keys: true))
   end
 
   def test_results_enumerable
@@ -43,7 +78,7 @@ class MysqlRb::ResultTest < Minitest::Test
 
     assert_equal 1, r.to_a.size
     row = r.first
-    assert_equal ["1", "2", "3"], row.data
+    assert_equal({"1" => "1", "2" => "2", "3" => "3" }, row)
   end
 
   def test_server_flags

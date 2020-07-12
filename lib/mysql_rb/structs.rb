@@ -2,29 +2,28 @@
 module MysqlRb
   # Credits: https://github.com/chrismoos/async-mysql
   class Row
-    attr_accessor :fields, :data, :attributes
+    attr_accessor :data
 
     def initialize
       self.data = []
-      self.attributes = {}
     end
 
-    def finalize
-      @fields.length.times do |x|
-        self.attributes[@fields[x].org_name] = @data[x]
+    def as_hash(fields, symbolize_keys: false)
+      attrs = {}
+      fields.each_with_index do |field, i|
+        key = if symbolize_keys
+                field.name.to_sym
+              else
+                field.name
+              end
+
+        attrs[key] = @data[i]
       end
+      attrs
     end
 
     def to_s
       "#<Row attributes=#{attributes}>"
-    end
-
-    def method_missing(symbol, *args)
-      if self.attributes.has_key? symbol.to_s
-        return self.attributes[symbol.to_s]
-      else
-        super(symbol, args)
-      end
     end
   end
 
