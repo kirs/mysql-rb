@@ -43,7 +43,7 @@ end
 
 ### Design choices
 
-This library does not attempt to capture complete support of MySQL protocol, but it aims to do enough to cover what modern applications and modern MySQL server (5.7+) needs
+This library does not attempt to capture complete support of MySQL protocol, but it aims to do enough to cover what modern applications and modern MySQL server (5.7+) needs.
 
 Here are some of the choices that were deliberately made:
 
@@ -77,6 +77,7 @@ iteration | queries | RSS (kb), mysql-rb | RSS (kb), mysql2
 9 | 13500 | 27524 | 22684
 10 | 15000 | 27580 | 22788
 
-The difference in RSS is not orders of magnitude different between a Ruby client and the C client.
+The difference in RSS is not orders of magnitude away between a Ruby client and the C client.
 
 The decrease in RSS in mysql2 after the 7th iteration can be explain by Ruby's GC kicking in (remember that C ext doesn't cause to many allocations and it would take longer for GC to start collecting objects).
+
