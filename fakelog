@@ -6,8 +6,8 @@
 2021-07-26T22:59:38.924Z	INFO
 2021-07-26T22:59:38.924Z	INFO	----------------------------------------Initial Task Summary----------------------------------------
 2021-07-26T22:59:38.924Z	INFO	Cluster = apps-b-us-east1-6
-2021-07-26T22:59:38.924Z	INFO	  HTML Logs = https://storage.cloud.google.com/logs
-2021-07-26T22:59:38.924Z	INFO	  Splunk Logs = https://omglogs.com
+2021-07-26T22:59:38.924Z	INFO	  HTML Logs = https://storage.cloud.google.com/logs/one/two/three/four
+2021-07-26T22:59:38.924Z	INFO	  Splunk Logs = https://omglogs.com/one/two/three/four
 2021-07-26T23:02:10.825Z	INFO
 2021-07-26T23:02:10.825Z	INFO	-------------------------------------Update deployment metadata-------------------------------------
 2021-07-26T23:02:10.897Z	INFO	runtime annotated with deployed sha (28f2e55e041f29d8aeacbbbec7f8052628b9d029).
