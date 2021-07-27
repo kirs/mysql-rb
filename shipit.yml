@@ -1,0 +1,9 @@
+# The dependencies step if for installing your deploy script dependencies only.
+dependencies:
+  override:
+    - "echo 1"
+
+deploy:
+  override:
+    - ./fakedeploy
+
