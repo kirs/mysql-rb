@@ -5,5 +5,5 @@ dependencies:
 
 deploy:
   override:
-    - ./fakedeploy
+    - "cat fakelog"
 
